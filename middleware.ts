@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 export async function middleware(req: NextRequest) {
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET });
+  const isSecure = req.headers.get("x-forwarded-proto") === "https" || req.nextUrl.protocol === "https:";
+  const token = await getToken({ req, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET, secureCookie: isSecure });
   const isLoggedIn = !!token;
   const isAuthPage = req.nextUrl.pathname === "/login" || req.nextUrl.pathname === "/register";
   const isPublicRoute =
