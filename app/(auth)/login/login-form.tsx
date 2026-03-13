@@ -1,20 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-export function LoginForm({ csrfToken: initialCsrf }: { csrfToken: string }) {
-  const [csrfToken, setCsrfToken] = useState(initialCsrf);
+export function LoginForm() {
+  const [csrfToken, setCsrfToken] = useState("");
+  const [loading, setLoading] = useState(true);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    // Fetch CSRF client-side to ensure it matches the cookie
-    fetch("/api/auth/csrf")
+    fetch("/api/auth/csrf", { credentials: "include" })
       .then(r => r.json())
-      .then(data => setCsrfToken(data.csrfToken))
-      .catch(() => {});
+      .then(data => {
+        setCsrfToken(data.csrfToken);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   return (
-    <form method="POST" action="/api/auth/callback/credentials">
+    <form ref={formRef} method="POST" action="/api/auth/callback/credentials">
       <input type="hidden" name="csrfToken" value={csrfToken} />
       <input type="hidden" name="callbackUrl" value="/" />
       <div style={{ marginBottom: 16 }}>
@@ -40,9 +44,20 @@ export function LoginForm({ csrfToken: initialCsrf }: { csrfToken: string }) {
       </div>
       <button
         type="submit"
-        style={{ width: "100%", padding: "10px", background: "#111", color: "white", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+        disabled={loading}
+        style={{
+          width: "100%",
+          padding: "10px",
+          background: loading ? "#999" : "#111",
+          color: "white",
+          border: "none",
+          borderRadius: 6,
+          fontSize: 14,
+          fontWeight: 500,
+          cursor: loading ? "wait" : "pointer",
+        }}
       >
-        Se connecter
+        {loading ? "Chargement..." : "Se connecter"}
       </button>
     </form>
   );
