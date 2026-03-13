@@ -1,33 +1,22 @@
 "use client";
 
-import { useFormStatus } from "react-dom";
+import { useEffect, useState } from "react";
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      style={{
-        width: "100%",
-        padding: "10px",
-        background: pending ? "#999" : "#111",
-        color: "white",
-        border: "none",
-        borderRadius: 6,
-        fontSize: 14,
-        fontWeight: 500,
-        cursor: pending ? "not-allowed" : "pointer",
-      }}
-    >
-      {pending ? "Connexion..." : "Se connecter"}
-    </button>
-  );
-}
+export function LoginForm({ csrfToken: initialCsrf }: { csrfToken: string }) {
+  const [csrfToken, setCsrfToken] = useState(initialCsrf);
 
-export function LoginForm({ action }: { action: (formData: FormData) => Promise<void> }) {
+  useEffect(() => {
+    // Fetch CSRF client-side to ensure it matches the cookie
+    fetch("/api/auth/csrf")
+      .then(r => r.json())
+      .then(data => setCsrfToken(data.csrfToken))
+      .catch(() => {});
+  }, []);
+
   return (
-    <form action={action}>
+    <form method="POST" action="/api/auth/callback/credentials">
+      <input type="hidden" name="csrfToken" value={csrfToken} />
+      <input type="hidden" name="callbackUrl" value="/" />
       <div style={{ marginBottom: 16 }}>
         <label htmlFor="email" style={{ display: "block", marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Email</label>
         <input
@@ -49,7 +38,12 @@ export function LoginForm({ action }: { action: (formData: FormData) => Promise<
           style={{ width: "100%", padding: "8px 12px", border: "1px solid #ddd", borderRadius: 6, fontSize: 14, boxSizing: "border-box" }}
         />
       </div>
-      <SubmitButton />
+      <button
+        type="submit"
+        style={{ width: "100%", padding: "10px", background: "#111", color: "white", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+      >
+        Se connecter
+      </button>
     </form>
   );
 }
