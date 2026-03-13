@@ -55,6 +55,9 @@ export default function ListsPage() {
   const [form, setForm] = useState({ name: "", entityId: "" });
   const [csvData, setCsvData] = useState<{ email: string; firstName?: string; lastName?: string }[]>([]);
   const [importing, setImporting] = useState(false);
+  const [openAddContact, setOpenAddContact] = useState(false);
+  const [contactForm, setContactForm] = useState({ email: "", firstName: "", lastName: "" });
+  const [addingContact, setAddingContact] = useState(false);
 
   async function loadLists() {
     const res = await fetch("/api/lists");
@@ -157,6 +160,34 @@ export default function ListsPage() {
     setImporting(false);
   }
 
+  async function handleAddContact(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedList) return;
+    setAddingContact(true);
+
+    const res = await fetch(`/api/lists/${selectedList.id}/import`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contacts: [contactForm] }),
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      if (result.imported > 0) {
+        toast.success("Contact ajouté");
+      } else {
+        toast.error("Contact ignoré (déjà existant ?)");
+      }
+      setOpenAddContact(false);
+      setContactForm({ email: "", firstName: "", lastName: "" });
+      loadLists();
+      loadContacts(selectedList.id);
+    } else {
+      toast.error("Erreur lors de l'ajout");
+    }
+    setAddingContact(false);
+  }
+
   function selectList(list: ContactList) {
     setSelectedList(list);
     loadContacts(list.id);
@@ -168,6 +199,34 @@ export default function ListsPage() {
         <h1 className="text-3xl font-bold">Listes & Contacts</h1>
         <div className="flex gap-2">
           {selectedList && (
+            <>
+            <Dialog open={openAddContact} onOpenChange={setOpenAddContact}>
+              <DialogTrigger render={<Button variant="outline" />}>
+                Ajouter un contact
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Ajouter un contact à &quot;{selectedList.name}&quot;</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleAddContact} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input type="email" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} placeholder="contact@exemple.com" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Prénom (optionnel)</Label>
+                    <Input value={contactForm.firstName} onChange={(e) => setContactForm({ ...contactForm, firstName: e.target.value })} placeholder="Jean" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Nom (optionnel)</Label>
+                    <Input value={contactForm.lastName} onChange={(e) => setContactForm({ ...contactForm, lastName: e.target.value })} placeholder="Dupont" />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={addingContact}>
+                    {addingContact ? "Ajout..." : "Ajouter"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
             <Dialog open={openImport} onOpenChange={setOpenImport}>
               <DialogTrigger render={<Button variant="outline" />}>
                 Importer CSV
@@ -222,6 +281,7 @@ export default function ListsPage() {
                 )}
               </DialogContent>
             </Dialog>
+            </>
           )}
           <Dialog open={openCreate} onOpenChange={setOpenCreate}>
             <DialogTrigger render={<Button />}>
