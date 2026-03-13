@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -306,6 +306,9 @@ export default function EntitiesPage() {
                 )}
               </div>
 
+              {/* Warmup Section */}
+              {entity.isVerified && <WarmupSection entityId={entity.id} />}
+
               {/* Edit / Delete */}
               <div className="flex gap-2 border-t pt-3">
                 <Button variant="outline" size="sm" onClick={() => openEdit(entity)}>
@@ -324,6 +327,165 @@ export default function EntitiesPage() {
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Warmup Section Component ──
+
+interface WarmupProgress {
+  dailyLimit: number;
+  remainingToday: number;
+  daysElapsed: number;
+  daysRemaining: number;
+  progressPercent: number;
+  isComplete: boolean;
+  totalSent: number;
+  targetVolume: number;
+  sentToday: number;
+}
+
+interface WarmupData {
+  enabled: boolean;
+  dailyLimit: number;
+  targetVolume: number;
+  duplicationDays: number;
+  maxWarmupDays: number;
+  totalSent: number;
+  progress: WarmupProgress;
+}
+
+function WarmupSection({ entityId }: { entityId: string }) {
+  const [warmup, setWarmup] = useState<WarmupData | null>(null);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    enabled: true,
+    dailyLimit: 50,
+    targetVolume: 10000,
+    duplicationDays: 7,
+    maxWarmupDays: 56,
+  });
+
+  const loadWarmup = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/entities/${entityId}/warmup`);
+      if (res.ok) {
+        const data = await res.json();
+        setWarmup(data);
+        setForm({
+          enabled: data.enabled,
+          dailyLimit: data.dailyLimit,
+          targetVolume: data.targetVolume,
+          duplicationDays: data.duplicationDays,
+          maxWarmupDays: data.maxWarmupDays,
+        });
+      }
+    } catch { /* ignore */ }
+  }, [entityId]);
+
+  useEffect(() => { loadWarmup(); }, [loadWarmup]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/entities/${entityId}/warmup`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWarmup(data);
+        toast.success("Configuration warmup mise à jour");
+        setConfigOpen(false);
+      } else {
+        toast.error("Erreur lors de la sauvegarde");
+      }
+    } catch {
+      toast.error("Erreur");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!warmup) return null;
+
+  const p = warmup.progress;
+
+  return (
+    <div className="border-t pt-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold">Warmup progressif</span>
+        <Dialog open={configOpen} onOpenChange={setConfigOpen}>
+          <DialogTrigger render={<Button variant="ghost" size="sm" className="h-6 text-xs" />}>
+            Configurer
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Configuration du warmup</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.enabled}
+                  onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
+                />
+                Activer le warmup progressif
+              </label>
+              <div className="space-y-2">
+                <Label>Limite initiale (emails/jour)</Label>
+                <Input type="number" value={form.dailyLimit} onChange={(e) => setForm({ ...form, dailyLimit: parseInt(e.target.value) || 50 })} min="5" />
+              </div>
+              <div className="space-y-2">
+                <Label>Volume cible (emails/jour)</Label>
+                <Input type="number" value={form.targetVolume} onChange={(e) => setForm({ ...form, targetVolume: parseInt(e.target.value) || 10000 })} min="100" />
+              </div>
+              <div className="space-y-2">
+                <Label>Doubler tous les N jours</Label>
+                <Input type="number" value={form.duplicationDays} onChange={(e) => setForm({ ...form, duplicationDays: parseInt(e.target.value) || 7 })} min="1" max="30" />
+                <p className="text-xs text-muted-foreground">
+                  Progression : {form.dailyLimit} → {form.dailyLimit * 2} → {form.dailyLimit * 4} → ... → {form.targetVolume}/jour
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Durée max (jours)</Label>
+                <Input type="number" value={form.maxWarmupDays} onChange={(e) => setForm({ ...form, maxWarmupDays: parseInt(e.target.value) || 56 })} min="7" />
+              </div>
+              <Button className="w-full" onClick={handleSave} disabled={saving}>
+                {saving ? "Sauvegarde..." : "Enregistrer"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {warmup.enabled ? (
+        <>
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{p.dailyLimit} / {p.targetVolume} emails/jour</span>
+              <span>{Math.round(p.progressPercent)}%</span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-1.5">
+              <div
+                className={`h-1.5 rounded-full transition-all ${p.isComplete ? "bg-green-500" : "bg-blue-500"}`}
+                style={{ width: `${p.progressPercent}%` }}
+              />
+            </div>
+          </div>
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Aujourd&apos;hui : {p.sentToday}/{p.dailyLimit}</span>
+            <span>Jour {p.daysElapsed} / {p.daysElapsed + p.daysRemaining}</span>
+          </div>
+          {p.isComplete && (
+            <p className="text-xs text-green-600 font-medium">Warmup terminé — volume max atteint</p>
+          )}
+        </>
+      ) : (
+        <p className="text-xs text-muted-foreground">Désactivé — aucune limite de volume</p>
+      )}
     </div>
   );
 }

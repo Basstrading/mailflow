@@ -32,6 +32,24 @@ model Entity {
   campaigns          Campaign[]
   contactLists       ContactList[]
   user               User          @relation(fields: [userId], references: [id])
+  warmupConfig       WarmupConfig?
+}
+
+model WarmupConfig {
+  id              String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  entityId        String    @unique
+  enabled         Boolean   @default(true)
+  startDate       DateTime  @default(now())
+  dailyLimit      Int       @default(50)
+  targetVolume    Int       @default(10000)
+  duplicationDays Int       @default(7)
+  maxWarmupDays   Int       @default(56)
+  totalSent       Int       @default(0)
+  lastResetDate   DateTime  @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+  entity          Entity    @relation(fields: [entityId], references: [id], onDelete: Cascade)
 }
 
 model ContactList {

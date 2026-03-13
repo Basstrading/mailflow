@@ -67,6 +67,7 @@ export async function POST(
   // Start sending in background (don't await)
   processSendJob({
     campaignId: campaign.id,
+    entityId: campaign.entity.id,
     contacts,
     subject: campaign.subject,
     htmlContent: campaign.htmlContent,

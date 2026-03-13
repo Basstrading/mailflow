@@ -37,6 +37,7 @@ export async function processScheduledCampaigns() {
     // Start sending in background
     processSendJob({
       campaignId: campaign.id,
+      entityId: campaign.entity.id,
       contacts,
       subject: campaign.subject,
       htmlContent: campaign.htmlContent,
