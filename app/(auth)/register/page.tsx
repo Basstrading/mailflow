@@ -42,10 +42,10 @@ export default function RegisterPage() {
       redirect: false,
     });
 
-    if (result?.error) {
-      router.push("/login");
+    if (result?.ok) {
+      window.location.href = "/";
     } else {
-      router.push("/");
+      window.location.href = "/login";
     }
   }
 

@@ -2,7 +2,6 @@
 
 import { signIn } from "next-auth/react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,24 +13,32 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
 
-    if (result?.error) {
-      setError("Identifiants incorrects");
+      if (result?.error) {
+        setError("Identifiants incorrects");
+        setLoading(false);
+      } else if (result?.ok) {
+        // Force full page reload to pick up the new session cookie
+        window.location.href = "/";
+      } else {
+        setError("Erreur de connexion");
+        setLoading(false);
+      }
+    } catch {
+      setError("Erreur de connexion");
       setLoading(false);
-    } else {
-      router.push("/");
     }
   }
 
@@ -51,7 +58,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@mailflow.app"
+                placeholder="vous@exemple.com"
                 required
               />
             </div>
