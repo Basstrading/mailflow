@@ -11,13 +11,14 @@
     h1 { font-size: 24px; text-align: center; margin-bottom: 4px; }
     .subtitle { text-align: center; color: #666; font-size: 14px; margin-bottom: 24px; }
     label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; }
-    input { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-bottom: 16px; }
+    input[type="email"], input[type="password"] { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-bottom: 16px; }
     button { width: 100%; padding: 10px; background: #111; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; }
     button:hover { background: #333; }
+    button:disabled { background: #999; cursor: not-allowed; }
     .error { color: red; font-size: 14px; margin-bottom: 12px; text-align: center; }
     .footer { text-align: center; margin-top: 16px; font-size: 14px; color: #666; }
     .footer a { color: #111; }
-    #status { margin-top: 8px; font-size: 13px; color: #666; text-align: center; }
+    #status { margin-top: 8px; font-size: 12px; color: #888; text-align: center; }
   </style>
 </head>
 <body>
@@ -25,86 +26,38 @@
     <h1>MailFlow</h1>
     <p class="subtitle">Connectez-vous pour accéder au dashboard</p>
     <div id="error" class="error" style="display:none;"></div>
-    <div>
+
+    <form id="loginForm" method="POST" action="/api/auth/callback/credentials">
+      <input type="hidden" name="csrfToken" id="csrfToken" value="">
+      <input type="hidden" name="callbackUrl" value="/">
+
       <label for="email">Email</label>
-      <input id="email" type="email" placeholder="vous@exemple.com" required>
+      <input id="email" name="email" type="email" placeholder="vous@exemple.com" required>
+
       <label for="password">Mot de passe</label>
-      <input id="password" type="password" required>
-      <button id="btn" onclick="doLogin()">Se connecter</button>
-    </div>
+      <input id="password" name="password" type="password" required>
+
+      <button type="submit" id="btn">Se connecter</button>
+    </form>
+
     <div id="status"></div>
     <p class="footer">Pas encore de compte ? <a href="/register">Créer un compte</a></p>
   </div>
+
   <script>
-    async function doLogin() {
-      var email = document.getElementById('email').value;
-      var password = document.getElementById('password').value;
-      var btn = document.getElementById('btn');
+    // Load CSRF token on page load
+    (async function() {
       var status = document.getElementById('status');
-      var errorDiv = document.getElementById('error');
-
-      errorDiv.style.display = 'none';
-      btn.textContent = 'Connexion...';
-      btn.disabled = true;
-      status.textContent = 'Récupération du token CSRF...';
-
       try {
-        // Step 1: Get CSRF token
-        status.textContent = 'Appel /api/auth/csrf...';
-        var csrfRes = await fetch('/api/auth/csrf');
-        status.textContent = 'CSRF status: ' + csrfRes.status + ' type: ' + csrfRes.headers.get('content-type');
-        var csrfText = await csrfRes.text();
-        status.textContent += ' | Body: ' + csrfText.substring(0, 300);
-
-        if (!csrfRes.ok || !csrfText.startsWith('{')) {
-          errorDiv.textContent = 'CSRF endpoint broken - status ' + csrfRes.status + ' - returns: ' + csrfText.substring(0, 100);
-          errorDiv.style.display = 'block';
-          btn.textContent = 'Se connecter';
-          btn.disabled = false;
-          return;
-        }
-        var csrfData = JSON.parse(csrfText);
-        status.textContent = 'CSRF OK: ' + csrfData.csrfToken + '. Envoi des identifiants...';
-
-        // Step 2: Call NextAuth credentials callback
-        var res = await fetch('/api/auth/callback/credentials', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            email: email,
-            password: password,
-            csrfToken: csrfData.csrfToken,
-            callbackUrl: '/',
-            json: 'true'
-          })
-        });
-
-        status.textContent = 'Réponse: ' + res.status + ' ' + res.statusText;
-
-        if (res.ok) {
-          var data = await res.json();
-          status.textContent = 'OK! Redirection... ' + JSON.stringify(data);
-          if (data.url) {
-            window.location.href = data.url;
-          } else {
-            window.location.href = '/';
-          }
-        } else {
-          var text = await res.text();
-          status.textContent = 'Erreur ' + res.status + ': ' + text.substring(0, 200);
-          errorDiv.textContent = 'Identifiants incorrects';
-          errorDiv.style.display = 'block';
-          btn.textContent = 'Se connecter';
-          btn.disabled = false;
-        }
-      } catch (err) {
-        status.textContent = 'Erreur: ' + err.message;
-        errorDiv.textContent = 'Erreur de connexion: ' + err.message;
-        errorDiv.style.display = 'block';
-        btn.textContent = 'Se connecter';
-        btn.disabled = false;
+        status.textContent = 'Chargement...';
+        var res = await fetch('/api/auth/csrf');
+        var data = await res.json();
+        document.getElementById('csrfToken').value = data.csrfToken;
+        status.textContent = '';
+      } catch(e) {
+        status.textContent = 'Erreur CSRF: ' + e.message;
       }
-    }
+    })();
   </script>
 </body>
 </html>
