@@ -24,19 +24,21 @@ export default function LoginPage() {
         email,
         password,
         redirect: false,
+        callbackUrl: "/",
       });
+
+      console.log("signIn result:", result);
 
       if (result?.error) {
         setError("Identifiants incorrects");
         setLoading(false);
-      } else if (result?.ok) {
-        // Force full page reload to pick up the new session cookie
-        window.location.href = "/";
+      } else if (result?.url) {
+        window.location.href = result.url;
       } else {
-        setError("Erreur de connexion");
-        setLoading(false);
+        window.location.href = "/";
       }
-    } catch {
+    } catch (err) {
+      console.error("signIn error:", err);
       setError("Erreur de connexion");
       setLoading(false);
     }
