@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now())
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+model Entity {
+  id           String        @id @default(cuid())
+  name         String
+  domain       String?
+  fromEmail    String
+  fromName     String
+  replyTo      String?
+  isVerified   Boolean       @default(false)
+  dkimTokens   Json?
+  verificationStatus String? @default("PENDING")
+  createdAt    DateTime      @default(now())
+  campaigns    Campaign[]
+  contactLists ContactList[]
+}
+
+model ContactList {
+  id        String     @id @default(cuid())
+  name      String
+  entityId  String
+  entity    Entity     @relation(fields: [entityId], references: [id])
+  contacts  Contact[]
+  campaigns Campaign[]
+  createdAt DateTime   @default(now())
+}
+
+model Contact {
+  id            String             @id @default(cuid())
+  email         String
+  firstName     String?
+  lastName      String?
+  status        ContactStatus      @default(SUBSCRIBED)
+  customFields  Json?
+  contactListId String
+  contactList   ContactList        @relation(fields: [contactListId], references: [id])
+  emailEvents   EmailEvent[]
+  unsubTokens   UnsubscribeToken[]
+  createdAt     DateTime           @default(now())
+
+  @@unique([email, contactListId])
+}
+
+enum ContactStatus {
+  SUBSCRIBED
+  UNSUBSCRIBED
+  BOUNCED
+  COMPLAINED
+}
+
+model Campaign {
+  id            String         @id @default(cuid())
+  name          String
+  subject       String
+  htmlContent   String
+  textContent   String?
+  entityId      String
+  entity        Entity         @relation(fields: [entityId], references: [id])
+  contactListId String
+  contactList   ContactList    @relation(fields: [contactListId], references: [id])
+  status        CampaignStatus @default(DRAFT)
+  scheduledAt   DateTime?
+  sentAt        DateTime?
+  totalSent     Int            @default(0)
+  createdAt     DateTime       @default(now())
+  emailEvents   EmailEvent[]
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  PAUSED
+}
+
+model EmailEvent {
+  id         String    @id @default(cuid())
+  campaignId String
+  campaign   Campaign  @relation(fields: [campaignId], references: [id])
+  contactId  String
+  contact    Contact   @relation(fields: [contactId], references: [id])
+  type       EventType
+  metadata   Json?
+  timestamp  DateTime  @default(now())
+}
+
+enum EventType {
+  SENT
+  OPENED
+  CLICKED
+  BOUNCED
+  COMPLAINED
+  UNSUBSCRIBED
+}
+
+model UnsubscribeToken {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id])
+  token     String   @unique @default(cuid())
+  createdAt DateTime @default(now())
+}

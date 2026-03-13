@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+
+  const campaign = await prisma.campaign.findUnique({
+    where: { id },
+    select: {
+      status: true,
+      totalSent: true,
+      contactList: {
+        select: {
+          _count: {
+            select: {
+              contacts: {
+                where: { status: "SUBSCRIBED" },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!campaign) {
+    return NextResponse.json({ error: "Campagne introuvable" }, { status: 404 });
+  }
+
+  const total = campaign.contactList._count.contacts;
+  const sent = campaign.totalSent;
+  const progress = total > 0 ? Math.round((sent / total) * 100) : 0;
+
+  return NextResponse.json({
+    status: campaign.status,
+    sent,
+    total,
+    progress,
+  });
+}
