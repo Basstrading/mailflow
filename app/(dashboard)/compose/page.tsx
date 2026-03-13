@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { EmailEditor } from "@/components/email-editor";
 
 interface Entity {
   id: string;
@@ -24,9 +25,9 @@ interface Entity {
 }
 
 const VARIABLES = [
-  { key: "{{prenom}}", label: "Prénom", desc: "Prénom du destinataire" },
-  { key: "{{nom}}", label: "Nom", desc: "Nom du destinataire" },
-  { key: "{{email}}", label: "Email", desc: "Email du destinataire" },
+  { key: "{{prenom}}", label: "Prénom" },
+  { key: "{{nom}}", label: "Nom" },
+  { key: "{{email}}", label: "Email" },
 ];
 
 export default function ComposePage() {
@@ -53,8 +54,8 @@ export default function ComposePage() {
       });
   }, []);
 
-  function insertVariable(variable: string, field: "subject" | "html") {
-    setForm((f) => ({ ...f, [field]: f[field] + variable }));
+  function insertVariable(variable: string) {
+    setForm((f) => ({ ...f, subject: f.subject + variable }));
   }
 
   async function handleSend(e: React.FormEvent) {
@@ -102,7 +103,7 @@ export default function ComposePage() {
   const selectedEntity = entities.find((e) => e.id === form.entityId);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <h1 className="text-3xl font-bold">Envoyer un email</h1>
 
       <Card>
@@ -187,7 +188,7 @@ export default function ComposePage() {
                       key={v.key}
                       variant="outline"
                       className="cursor-pointer text-xs hover:bg-primary hover:text-primary-foreground"
-                      onClick={() => insertVariable(v.key, "subject")}
+                      onClick={() => insertVariable(v.key)}
                     >
                       {v.label}
                     </Badge>
@@ -203,33 +204,12 @@ export default function ComposePage() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Contenu</Label>
-                <div className="flex gap-1">
-                  {VARIABLES.map((v) => (
-                    <Badge
-                      key={v.key}
-                      variant="outline"
-                      className="cursor-pointer text-xs hover:bg-primary hover:text-primary-foreground"
-                      onClick={() => insertVariable(v.key, "html")}
-                    >
-                      {v.label}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              <textarea
-                className="flex min-h-[200px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              <Label>Contenu</Label>
+              <EmailEditor
                 value={form.html}
-                onChange={(e) => setForm({ ...form, html: e.target.value })}
-                placeholder={"Bonjour {{prenom}},\n\nVotre contenu ici...\n\nCordialement,\n{{nom_expediteur}}"}
-                required
+                onChange={(html) => setForm({ ...form, html })}
+                variables={VARIABLES}
               />
-              <p className="text-xs text-muted-foreground">
-                Variables disponibles : <code>{"{{prenom}}"}</code>{" "}
-                <code>{"{{nom}}"}</code> <code>{"{{email}}"}</code> — Vous
-                pouvez écrire du texte simple ou du HTML.
-              </p>
             </div>
 
             <Button type="submit" className="w-full" disabled={sending}>
