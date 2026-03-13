@@ -40,7 +40,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=config", req.url));
   }
 
-  const isSecure = req.url.startsWith("https");
+  // Detect HTTPS properly (check x-forwarded-proto for reverse proxies like Vercel)
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const isSecure = forwardedProto === "https" || req.url.startsWith("https");
   const cookieName = isSecure
     ? "__Secure-authjs.session-token"
     : "authjs.session-token";
@@ -58,8 +60,12 @@ export async function POST(req: NextRequest) {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   });
 
-  // Create redirect response
-  const response = NextResponse.redirect(new URL("/", req.url));
+  // Build redirect URL using the forwarded host/proto for correct absolute URL
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost:3000";
+  const proto = isSecure ? "https" : "http";
+  const redirectUrl = `${proto}://${host}/`;
+
+  const response = NextResponse.redirect(redirectUrl);
 
   response.cookies.set(cookieName, token, {
     httpOnly: true,
