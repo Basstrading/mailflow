@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserId, unauthorized } from "@/lib/api-auth";
 import { processSendJob, isJobActive } from "@/lib/queue";
 import { applyRateLimit } from "@/lib/rate-limit";
 
@@ -7,13 +8,16 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getAuthUserId();
+  if (!userId) return unauthorized();
+
   const limited = applyRateLimit(_req, "send");
   if (limited) return limited;
 
   const { id } = await params;
 
-  const campaign = await prisma.campaign.findUnique({
-    where: { id },
+  const campaign = await prisma.campaign.findFirst({
+    where: { id, entity: { userId } },
     include: {
       entity: true,
       contactList: {

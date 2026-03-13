@@ -1,8 +1,16 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatsCharts } from "./stats-charts";
 
-async function getStats() {
+async function getStats(userId: string) {
+  const userEntityIds = await prisma.entity.findMany({
+    where: { userId },
+    select: { id: true },
+  });
+  const entityIds = userEntityIds.map((e) => e.id);
+
   const [
     totalEntities,
     totalContacts,
@@ -13,14 +21,15 @@ async function getStats() {
     totalBounced,
     recentCampaigns,
   ] = await Promise.all([
-    prisma.entity.count(),
-    prisma.contact.count({ where: { status: "SUBSCRIBED" } }),
-    prisma.campaign.count(),
-    prisma.emailEvent.count({ where: { type: "SENT" } }),
-    prisma.emailEvent.count({ where: { type: "OPENED" } }),
-    prisma.emailEvent.count({ where: { type: "CLICKED" } }),
-    prisma.emailEvent.count({ where: { type: "BOUNCED" } }),
+    prisma.entity.count({ where: { userId } }),
+    prisma.contact.count({ where: { status: "SUBSCRIBED", contactList: { entityId: { in: entityIds } } } }),
+    prisma.campaign.count({ where: { entityId: { in: entityIds } } }),
+    prisma.emailEvent.count({ where: { type: "SENT", campaign: { entityId: { in: entityIds } } } }),
+    prisma.emailEvent.count({ where: { type: "OPENED", campaign: { entityId: { in: entityIds } } } }),
+    prisma.emailEvent.count({ where: { type: "CLICKED", campaign: { entityId: { in: entityIds } } } }),
+    prisma.emailEvent.count({ where: { type: "BOUNCED", campaign: { entityId: { in: entityIds } } } }),
     prisma.campaign.findMany({
+      where: { entityId: { in: entityIds } },
       take: 5,
       orderBy: { createdAt: "desc" },
       include: {
@@ -44,7 +53,11 @@ async function getStats() {
 }
 
 export default async function DashboardPage() {
-  const stats = await getStats();
+  const session = await auth();
+  const userId = (session?.user as { id?: string })?.id;
+  if (!userId) redirect("/login");
+
+  const stats = await getStats(userId);
 
   const openRate = stats.totalSent > 0 ? ((stats.totalOpened / stats.totalSent) * 100).toFixed(1) : "0";
   const clickRate = stats.totalSent > 0 ? ((stats.totalClicked / stats.totalSent) * 100).toFixed(1) : "0";

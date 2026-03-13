@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserId, unauthorized } from "@/lib/api-auth";
 import { verifyDomain } from "@/lib/ses";
 
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getAuthUserId();
+  if (!userId) return unauthorized();
+
   const { id } = await params;
 
-  const entity = await prisma.entity.findUnique({ where: { id } });
+  const entity = await prisma.entity.findFirst({ where: { id, userId } });
   if (!entity) {
     return NextResponse.json({ error: "Entité introuvable" }, { status: 404 });
   }

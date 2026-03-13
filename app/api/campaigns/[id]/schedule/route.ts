@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUserId, unauthorized } from "@/lib/api-auth";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getAuthUserId();
+  if (!userId) return unauthorized();
+
   const { id } = await params;
   const { scheduledAt } = await req.json();
 
@@ -21,8 +25,8 @@ export async function POST(
     );
   }
 
-  const campaign = await prisma.campaign.findUnique({
-    where: { id },
+  const campaign = await prisma.campaign.findFirst({
+    where: { id, entity: { userId } },
     select: { status: true },
   });
 
@@ -53,10 +57,13 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getAuthUserId();
+  if (!userId) return unauthorized();
+
   const { id } = await params;
 
-  const campaign = await prisma.campaign.findUnique({
-    where: { id },
+  const campaign = await prisma.campaign.findFirst({
+    where: { id, entity: { userId } },
     select: { status: true },
   });
 

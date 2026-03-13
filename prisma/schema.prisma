@@ -14,36 +14,34 @@ model User {
   password  String
   role      UserRole @default(USER)
   createdAt DateTime @default(now())
-}
-
-enum UserRole {
-  ADMIN
-  USER
+  entities  Entity[]
 }
 
 model Entity {
-  id           String        @id @default(cuid())
-  name         String
-  domain       String?
-  fromEmail    String
-  fromName     String
-  replyTo      String?
-  isVerified   Boolean       @default(false)
-  dkimTokens   Json?
-  verificationStatus String? @default("PENDING")
-  createdAt    DateTime      @default(now())
-  campaigns    Campaign[]
-  contactLists ContactList[]
+  id                 String        @id @default(cuid())
+  name               String
+  fromEmail          String
+  fromName           String
+  replyTo            String?
+  isVerified         Boolean       @default(false)
+  createdAt          DateTime      @default(now())
+  dkimTokens         Json?
+  domain             String?
+  verificationStatus String?       @default("PENDING")
+  userId             String
+  campaigns          Campaign[]
+  contactLists       ContactList[]
+  user               User          @relation(fields: [userId], references: [id])
 }
 
 model ContactList {
   id        String     @id @default(cuid())
   name      String
   entityId  String
-  entity    Entity     @relation(fields: [entityId], references: [id])
-  contacts  Contact[]
-  campaigns Campaign[]
   createdAt DateTime   @default(now())
+  campaigns Campaign[]
+  contacts  Contact[]
+  entity    Entity     @relation(fields: [entityId], references: [id])
 }
 
 model Contact {
@@ -54,19 +52,12 @@ model Contact {
   status        ContactStatus      @default(SUBSCRIBED)
   customFields  Json?
   contactListId String
+  createdAt     DateTime           @default(now())
   contactList   ContactList        @relation(fields: [contactListId], references: [id])
   emailEvents   EmailEvent[]
   unsubTokens   UnsubscribeToken[]
-  createdAt     DateTime           @default(now())
 
   @@unique([email, contactListId])
-}
-
-enum ContactStatus {
-  SUBSCRIBED
-  UNSUBSCRIBED
-  BOUNCED
-  COMPLAINED
 }
 
 model Campaign {
@@ -76,15 +67,46 @@ model Campaign {
   htmlContent   String
   textContent   String?
   entityId      String
-  entity        Entity         @relation(fields: [entityId], references: [id])
   contactListId String
-  contactList   ContactList    @relation(fields: [contactListId], references: [id])
   status        CampaignStatus @default(DRAFT)
   scheduledAt   DateTime?
   sentAt        DateTime?
   totalSent     Int            @default(0)
   createdAt     DateTime       @default(now())
+  contactList   ContactList    @relation(fields: [contactListId], references: [id])
+  entity        Entity         @relation(fields: [entityId], references: [id])
   emailEvents   EmailEvent[]
+}
+
+model EmailEvent {
+  id         String    @id @default(cuid())
+  campaignId String
+  contactId  String
+  type       EventType
+  metadata   Json?
+  timestamp  DateTime  @default(now())
+  campaign   Campaign  @relation(fields: [campaignId], references: [id])
+  contact    Contact   @relation(fields: [contactId], references: [id])
+}
+
+model UnsubscribeToken {
+  id        String   @id @default(cuid())
+  contactId String
+  token     String   @unique @default(cuid())
+  createdAt DateTime @default(now())
+  contact   Contact  @relation(fields: [contactId], references: [id])
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum ContactStatus {
+  SUBSCRIBED
+  UNSUBSCRIBED
+  BOUNCED
+  COMPLAINED
 }
 
 enum CampaignStatus {
@@ -95,17 +117,6 @@ enum CampaignStatus {
   PAUSED
 }
 
-model EmailEvent {
-  id         String    @id @default(cuid())
-  campaignId String
-  campaign   Campaign  @relation(fields: [campaignId], references: [id])
-  contactId  String
-  contact    Contact   @relation(fields: [contactId], references: [id])
-  type       EventType
-  metadata   Json?
-  timestamp  DateTime  @default(now())
-}
-
 enum EventType {
   SENT
   OPENED
@@ -113,12 +124,4 @@ enum EventType {
   BOUNCED
   COMPLAINED
   UNSUBSCRIBED
-}
-
-model UnsubscribeToken {
-  id        String   @id @default(cuid())
-  contactId String
-  contact   Contact  @relation(fields: [contactId], references: [id])
-  token     String   @unique @default(cuid())
-  createdAt DateTime @default(now())
 }
