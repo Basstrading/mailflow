@@ -50,9 +50,21 @@
 
       try {
         // Step 1: Get CSRF token
+        status.textContent = 'Appel /api/auth/csrf...';
         var csrfRes = await fetch('/api/auth/csrf');
-        var csrfData = await csrfRes.json();
-        status.textContent = 'CSRF OK. Envoi des identifiants...';
+        status.textContent = 'CSRF status: ' + csrfRes.status + ' type: ' + csrfRes.headers.get('content-type');
+        var csrfText = await csrfRes.text();
+        status.textContent += ' | Body: ' + csrfText.substring(0, 300);
+
+        if (!csrfRes.ok || !csrfText.startsWith('{')) {
+          errorDiv.textContent = 'CSRF endpoint broken - status ' + csrfRes.status + ' - returns: ' + csrfText.substring(0, 100);
+          errorDiv.style.display = 'block';
+          btn.textContent = 'Se connecter';
+          btn.disabled = false;
+          return;
+        }
+        var csrfData = JSON.parse(csrfText);
+        status.textContent = 'CSRF OK: ' + csrfData.csrfToken + '. Envoi des identifiants...';
 
         // Step 2: Call NextAuth credentials callback
         var res = await fetch('/api/auth/callback/credentials', {
