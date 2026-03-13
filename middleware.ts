@@ -10,6 +10,7 @@ export async function middleware(req: NextRequest) {
     req.nextUrl.pathname.startsWith("/api/webhooks") ||
     req.nextUrl.pathname.startsWith("/api/scheduler") ||
     req.nextUrl.pathname.startsWith("/api/register") ||
+    req.nextUrl.pathname.startsWith("/api/login") ||
     req.nextUrl.pathname.startsWith("/unsubscribe") ||
     req.nextUrl.pathname.startsWith("/api/auth");
 

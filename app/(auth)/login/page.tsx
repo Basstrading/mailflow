@@ -1,28 +1,7 @@
-import { signIn } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import { AuthError } from "next-auth";
 import Link from "next/link";
-import { LoginForm } from "./login-form";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const params = await searchParams;
-
-  async function login(formData: FormData) {
-    "use server";
-    try {
-      await signIn("credentials", {
-        email: formData.get("email") as string,
-        password: formData.get("password") as string,
-        redirect: false,
-      });
-    } catch (error) {
-      if (error instanceof AuthError) {
-        return redirect("/login?error=credentials");
-      }
-      throw error;
-    }
-    redirect("/");
-  }
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f5f5" }}>
@@ -30,9 +9,39 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <h1 style={{ fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 4 }}>MailFlow</h1>
         <p style={{ textAlign: "center", color: "#666", marginBottom: 24, fontSize: 14 }}>Connectez-vous pour accéder au dashboard</p>
         {params?.error && (
-          <p style={{ color: "red", fontSize: 14, marginBottom: 12, textAlign: "center" }}>Identifiants incorrects</p>
+          <p style={{ color: "red", fontSize: 14, marginBottom: 12, textAlign: "center" }}>
+            Identifiants incorrects
+          </p>
         )}
-        <LoginForm action={login} />
+        <form method="POST" action="/api/login">
+          <div style={{ marginBottom: 16 }}>
+            <label htmlFor="email" style={{ display: "block", marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="vous@exemple.com"
+              required
+              style={{ width: "100%", padding: "8px 12px", border: "1px solid #ddd", borderRadius: 6, fontSize: 14, boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label htmlFor="password" style={{ display: "block", marginBottom: 4, fontSize: 14, fontWeight: 500 }}>Mot de passe</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              style={{ width: "100%", padding: "8px 12px", border: "1px solid #ddd", borderRadius: 6, fontSize: 14, boxSizing: "border-box" }}
+            />
+          </div>
+          <button
+            type="submit"
+            style={{ width: "100%", padding: "10px", background: "#111", color: "white", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+          >
+            Se connecter
+          </button>
+        </form>
         <p style={{ textAlign: "center", marginTop: 16, fontSize: 14, color: "#666" }}>
           Pas encore de compte ?{" "}
           <Link href="/register" style={{ color: "#111", textDecoration: "underline" }}>
