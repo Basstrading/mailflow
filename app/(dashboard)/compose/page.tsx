@@ -122,9 +122,14 @@ export default function ComposePage() {
       if (res.ok) {
         const data = await res.json();
         setProgress({ sent: data.sent, total: data.total, failed: data.failed });
-        toast.success(`${data.sent} email(s) envoyé(s) sur ${data.total}`);
+        if (data.sent > 0) {
+          toast.success(`${data.sent} email(s) envoyé(s) sur ${data.total}`);
+        }
         if (data.failed > 0) {
           toast.error(`${data.failed} email(s) en erreur`);
+          if (data.errors?.length) {
+            toast.error(data.errors[0], { duration: 10000 });
+          }
         }
       } else {
         const data = await res.json();

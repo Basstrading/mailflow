@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
   const from = `${entity.fromName} <${entity.fromEmail}>`;
   let sent = 0;
   let failed = 0;
+  const errors: string[] = [];
 
   for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
     const batch = recipients.slice(i, i + BATCH_SIZE);
@@ -128,7 +129,9 @@ export async function POST(req: NextRequest) {
         sent++;
       } else {
         failed++;
-        console.error("Erreur envoi:", result.reason);
+        const errMsg = result.reason?.message || result.reason?.toString() || "Unknown error";
+        console.error("Erreur envoi:", errMsg);
+        if (errors.length < 3) errors.push(errMsg);
       }
     }
 
@@ -138,5 +141,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ sent, failed, total: recipients.length });
+  return NextResponse.json({
+    sent,
+    failed,
+    total: recipients.length,
+    errors: errors.length > 0 ? errors : undefined,
+  });
 }
