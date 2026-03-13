@@ -24,20 +24,31 @@ interface Entity {
   isVerified: boolean;
 }
 
+interface ContactList {
+  id: string;
+  name: string;
+  entityId: string;
+  _count: { contacts: number };
+}
+
 const VARIABLES = [
   { key: "{{prenom}}", label: "Prénom" },
   { key: "{{nom}}", label: "Nom" },
   { key: "{{email}}", label: "Email" },
 ];
 
+type RecipientMode = "manual" | "list";
+
 export default function ComposePage() {
   const [entities, setEntities] = useState<Entity[]>([]);
+  const [lists, setLists] = useState<ContactList[]>([]);
   const [sending, setSending] = useState(false);
+  const [progress, setProgress] = useState<{ sent: number; total: number; failed: number } | null>(null);
+  const [recipientMode, setRecipientMode] = useState<RecipientMode>("manual");
   const [form, setForm] = useState({
     entityId: "",
-    to: "",
-    firstName: "",
-    lastName: "",
+    contactListId: "",
+    emails: "",
     subject: "",
     html: "",
   });
@@ -52,44 +63,69 @@ export default function ComposePage() {
           setForm((f) => ({ ...f, entityId: verified[0].id }));
         }
       });
+    fetch("/api/lists")
+      .then((r) => r.json())
+      .then(setLists);
   }, []);
 
   function insertVariable(variable: string) {
     setForm((f) => ({ ...f, subject: f.subject + variable }));
   }
 
+  const filteredLists = lists.filter(
+    (l) => !form.entityId || l.entityId === form.entityId
+  );
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.entityId || !form.to || !form.subject || !form.html) {
-      toast.error("Veuillez remplir tous les champs");
+
+    if (!form.entityId || !form.subject || !form.html) {
+      toast.error("Veuillez remplir l'expéditeur, l'objet et le contenu");
+      return;
+    }
+
+    if (recipientMode === "manual" && !form.emails.trim()) {
+      toast.error("Veuillez saisir au moins un email");
+      return;
+    }
+
+    if (recipientMode === "list" && !form.contactListId) {
+      toast.error("Veuillez sélectionner une liste");
       return;
     }
 
     setSending(true);
+    setProgress(null);
+
     try {
+      const body: Record<string, unknown> = {
+        entityId: form.entityId,
+        subject: form.subject,
+        html: form.html,
+      };
+
+      if (recipientMode === "manual") {
+        body.emails = form.emails
+          .split(/[\n,;]+/)
+          .map((e) => e.trim())
+          .filter((e) => e);
+      } else {
+        body.contactListId = form.contactListId;
+      }
+
       const res = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entityId: form.entityId,
-          to: form.to,
-          firstName: form.firstName,
-          lastName: form.lastName,
-          subject: form.subject,
-          html: form.html,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
-        toast.success("Email envoyé !");
-        setForm((f) => ({
-          ...f,
-          to: "",
-          firstName: "",
-          lastName: "",
-          subject: "",
-          html: "",
-        }));
+        const data = await res.json();
+        setProgress({ sent: data.sent, total: data.total, failed: data.failed });
+        toast.success(`${data.sent} email(s) envoyé(s) sur ${data.total}`);
+        if (data.failed > 0) {
+          toast.error(`${data.failed} email(s) en erreur`);
+        }
       } else {
         const data = await res.json();
         toast.error(data.error || "Erreur lors de l'envoi");
@@ -111,7 +147,8 @@ export default function ComposePage() {
           <CardTitle>Nouvel email</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSend} className="space-y-4">
+          <form onSubmit={handleSend} className="space-y-5">
+            {/* Expéditeur */}
             <div className="space-y-2">
               <Label>Expéditeur</Label>
               <Select
@@ -145,40 +182,75 @@ export default function ComposePage() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>Destinataire</Label>
-              <Input
-                type="email"
-                value={form.to}
-                onChange={(e) => setForm({ ...form, to: e.target.value })}
-                placeholder="destinataire@exemple.com"
-                required
-              />
+            {/* Destinataires */}
+            <div className="space-y-3">
+              <Label>Destinataires</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={recipientMode === "manual" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setRecipientMode("manual")}
+                >
+                  Saisie manuelle
+                </Button>
+                <Button
+                  type="button"
+                  variant={recipientMode === "list" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setRecipientMode("list")}
+                >
+                  Liste de contacts
+                </Button>
+              </div>
+
+              {recipientMode === "manual" ? (
+                <div className="space-y-2">
+                  <textarea
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={form.emails}
+                    onChange={(e) => setForm({ ...form, emails: e.target.value })}
+                    placeholder={"email1@exemple.com\nemail2@exemple.com\nemail3@exemple.com"}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Un email par ligne, ou séparés par des virgules.
+                    {form.emails.trim() && (
+                      <span className="font-medium text-foreground">
+                        {" "}
+                        {form.emails.split(/[\n,;]+/).filter((e) => e.trim()).length} destinataire(s)
+                      </span>
+                    )}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Select
+                    value={form.contactListId}
+                    onValueChange={(v: string | null) =>
+                      setForm({ ...form, contactListId: v ?? "" })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner une liste" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredLists.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>
+                          {l.name} ({l._count.contacts} contacts)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {filteredLists.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Aucune liste disponible pour cette entité.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Prénom (optionnel)</Label>
-                <Input
-                  value={form.firstName}
-                  onChange={(e) =>
-                    setForm({ ...form, firstName: e.target.value })
-                  }
-                  placeholder="Jean"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Nom (optionnel)</Label>
-                <Input
-                  value={form.lastName}
-                  onChange={(e) =>
-                    setForm({ ...form, lastName: e.target.value })
-                  }
-                  placeholder="Dupont"
-                />
-              </div>
-            </div>
-
+            {/* Objet */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Objet</Label>
@@ -203,6 +275,7 @@ export default function ComposePage() {
               />
             </div>
 
+            {/* Contenu - Éditeur riche */}
             <div className="space-y-2">
               <Label>Contenu</Label>
               <EmailEditor
@@ -212,7 +285,32 @@ export default function ComposePage() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={sending}>
+            {/* Progress */}
+            {progress && (
+              <div className="rounded-lg border p-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span>
+                    Envoyés : <span className="font-bold text-green-600">{progress.sent}</span> / {progress.total}
+                  </span>
+                  {progress.failed > 0 && (
+                    <span className="text-red-600">
+                      Erreurs : {progress.failed}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-green-500 transition-all"
+                    style={{
+                      width: `${Math.round((progress.sent / progress.total) * 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Submit */}
+            <Button type="submit" className="w-full" size="lg" disabled={sending}>
               {sending ? "Envoi en cours..." : "Envoyer"}
             </Button>
           </form>
