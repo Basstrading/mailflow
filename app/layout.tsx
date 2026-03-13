@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MailFlow",
+  title: "EmailFlow",
   description: "Plateforme d'envoi d'emails",
 };
 

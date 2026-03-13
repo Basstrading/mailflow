@@ -53,7 +53,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">MailFlow</CardTitle>
+          <CardTitle className="text-2xl font-bold">EmailFlow</CardTitle>
           <CardDescription>Créez votre compte</CardDescription>
         </CardHeader>
         <CardContent>

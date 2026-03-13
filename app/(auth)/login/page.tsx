@@ -6,7 +6,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f5f5" }}>
       <div style={{ width: "100%", maxWidth: 400, background: "white", borderRadius: 12, padding: 32, boxShadow: "0 2px 10px rgba(0,0,0,0.1)" }}>
-        <h1 style={{ fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 4 }}>MailFlow</h1>
+        <h1 style={{ fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 4 }}>EmailFlow</h1>
         <p style={{ textAlign: "center", color: "#666", marginBottom: 24, fontSize: 14 }}>Connectez-vous pour accéder au dashboard</p>
         {params?.error && (
           <p style={{ color: "red", fontSize: 14, marginBottom: 12, textAlign: "center" }}>

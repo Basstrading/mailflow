@@ -75,7 +75,7 @@ export function Sidebar() {
       <div className="flex h-16 items-center border-b px-6">
         <Link href="/" className="flex items-center gap-2">
           <SendIcon className="h-6 w-6 text-primary" />
-          <span className="text-xl font-bold">MailFlow</span>
+          <span className="text-xl font-bold">EmailFlow</span>
         </Link>
       </div>
 
