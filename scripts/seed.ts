@@ -1,9 +1,6 @@
+import "dotenv/config";
+import { prisma } from "../lib/prisma";
 import bcrypt from "bcryptjs";
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const { PrismaClient } = require("../lib/generated/prisma");
-
-const prisma = new PrismaClient();
 
 async function main() {
   const email = process.env.ADMIN_EMAIL;
