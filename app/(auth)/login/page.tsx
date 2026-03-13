@@ -15,6 +15,10 @@ export default function LoginPage() {
     setError("");
 
     try {
+      // Get CSRF token first
+      const csrfRes = await fetch("/api/auth/csrf");
+      const { csrfToken } = await csrfRes.json();
+
       const res = await fetch("/api/auth/callback/credentials", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -24,13 +28,12 @@ export default function LoginPage() {
           redirect: "false",
           callbackUrl: "/",
           json: "true",
+          csrfToken,
         }),
       });
 
-      const data = await res.json();
-
-      if (data?.url) {
-        window.location.href = data.url;
+      if (res.ok) {
+        window.location.href = "/";
       } else {
         setError("Identifiants incorrects");
         setLoading(false);
