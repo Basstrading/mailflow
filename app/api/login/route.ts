@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
   const proto = isSecure ? "https" : "http";
   const redirectUrl = `${proto}://${host}/`;
 
-  const response = NextResponse.redirect(redirectUrl);
+  const response = NextResponse.redirect(redirectUrl, 303);
 
   response.cookies.set(cookieName, token, {
     httpOnly: true,
